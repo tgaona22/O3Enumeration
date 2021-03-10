@@ -5,7 +5,7 @@
 #include <set>
 #include <string>
 
-void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_seen, std::set<std::string> *result);
+void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_seen, std::set<std::string> *result, int level);
 
 int main()
 {
@@ -35,7 +35,7 @@ int main()
   O.newTetrahedron();
   std::set<std::string> already_seen, result;
   
-  recurse(&O, 2, &already_seen, &result);
+  recurse(&O, 2, &already_seen, &result, 0);
 
   for(std::set<std::string>::const_iterator it = result.begin();
       it != result.end();
@@ -44,8 +44,12 @@ int main()
   }
 }
 
-void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_seen, std::set<std::string> *result)
+void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_seen, std::set<std::string> *result, int level)
 {
+  std::string padding = "";
+  for (int i = 0; i < level; i++) {
+    padding += "  ";
+  }
   const std::string isoSig = M->isoSig();
 
   if (already_seen->find(isoSig) != already_seen->end()) {
@@ -58,6 +62,7 @@ void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_se
 
   // Get the open faces in the triangulation.
   std::vector<std::pair<int, int>> openFaces = M->getOpenFaces();
+
   
   // If there are no open faces, we're done with this triangulation.
   if (openFaces.empty()) {
@@ -71,44 +76,49 @@ void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_se
   }
 
   //std::cout << "See a triangulation with " << M->size() << " O3Tets. The max is " << max_tets << "\n";
-  std::cout << "The list of open faces is: \n";
+
+  std::cout << padding << "The list of open faces is: \n" << padding;
   for (auto iter = openFaces.begin(); iter != openFaces.end(); iter++) {
     std::cout << (*iter).first << ":" << (*iter).second << ", ";
   }
   std::cout << "\n";
+
+  int fixedTetIndex = openFaces.front().first;  
   if (M->size() < max_tets) {
-    // Copy the triangulation.
-    O3Triangulation N(*M);
+    // Try all four ways of adding a new tetrahedron to the chosen tetrahedron.
+    for (int f = 0; f <= 3; f++) {
+      // If face f is open in the fixed tetrahedron
+      if (M->tetrahedron(fixedTetIndex)->isOpen(f)) {
+	// Copy the triangulation.
+	O3Triangulation N(*M);
 
-    // Create a new tetrahedron and glue it to one of the existing open faces.
-    // We make the arbitrary choice of choosing the first open face in the list.
-    O3Tetrahedron *T1 = N.tetrahedron(openFaces.front().first);
-    int face1 = openFaces.front().second;
-    O3Tetrahedron *T2 = N.newTetrahedron();
-
-    T1->join(face1, T2);
-
-    recurse(&N, max_tets, already_seen, result);
+	// Create a new tetrahedron T2 and glue it to face f of an existing tetrahedron T1.
+	// We choose T1 arbitrarily to be the first tetrahedron in the list of open face pairs.
+	O3Tetrahedron *T1 = N.tetrahedron(openFaces.front().first);
+	O3Tetrahedron *T2 = N.newTetrahedron();
+	T1->join(f, T2);
+	recurse(&N, max_tets, already_seen, result, level+1);
+      }
+    }
   }
-
-  // Iterate over possible gluings for the chosen face.
-  // We've already fixed a face, so there is at most one gluing possible for each tetrahedron.
-  for (int i=0; i < M->size(); i++) {
-    int face1 = openFaces.front().second;
-    // Only copy the triangulation if the correct face is open in the other tetrahedron.
-    if (M->tetrahedron(i)->isOpen(face1)) {
-      // Copy the triangulation
-      O3Triangulation N(*M);
-      // Get the fixed face.
-      O3Tetrahedron *T1 = N.tetrahedron(openFaces.front().first);
-      // For each tet, try to glue face1 of T1 to tet. If not possible,
-      // the join method will not alter the triangulation. So when we
-      // recurse, it will return immediately as the isoSig has already been seen.
-      // this might make things slow.
-      O3Tetrahedron *T2 = N.tetrahedron(i);
-      T1->join(face1, T2);
-
-      recurse(&N, max_tets, already_seen, result);
+  
+  // Iterate over possible faces to glue in the fixed tetrahedron.
+  for (int f=0; f <= 3; f++) {
+    if (M->tetrahedron(fixedTetIndex)->isOpen(f)) {
+      // Iterate over all tetrahedra T and glue to face f of the fixed tetrahedron if possible.
+      for (int i=0; i < M->size(); i++) {
+	// Only copy the triangulation if the correct face is open in the other tetrahedron.
+	if (M->tetrahedron(i)->isOpen(f)) {
+	  // Copy the triangulation
+	  O3Triangulation N(*M);
+	  // Get the fixed face.
+	  O3Tetrahedron *T1 = N.tetrahedron(fixedTetIndex);
+	  O3Tetrahedron *T2 = N.tetrahedron(i);
+	  T1->join(f, T2);
+	  
+	  recurse(&N, max_tets, already_seen, result, level+1);
+	}
+      }
     }
   }
 }
