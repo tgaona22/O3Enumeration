@@ -1,0 +1,46 @@
+#ifndef O3TRIANGULATION_H
+#define O3TRIANGULATION_H
+
+#include <vector>
+#include <string>
+#include <engine.h>
+#include <triangulation/dim3.h>
+
+class O3Tetrahedron;
+
+class O3Triangulation {
+ public:
+  O3Triangulation();
+  O3Triangulation(const O3Triangulation& M);
+  O3Triangulation& operator=(const O3Triangulation& M);
+  ~O3Triangulation();
+
+  O3Tetrahedron* newTetrahedron();
+  //O3Tetrahedron* tetrahedron(int index); 
+  std::vector<std::pair<int,int>> getOpenFaces();
+  std::string isoSig() { return trig.isoSig(); }
+  bool anglesAreValid();
+  void printDihedralAngles();
+    
+ private:
+  const int edge_labels[4][4] = { {0, 3, 2, 6},
+				  {3, 0, 3, 2},
+				  {2, 3, 0, 2},
+				  {6, 2, 2, 0} };
+  const std::vector<std::pair<int, int>> admissible_angles = { std::pair<int,int>(3,1),
+							       std::pair<int,int>(2,1),
+							       std::pair<int,int>(3,2),
+							       std::pair<int,int>(2,2),
+							       std::pair<int,int>(3,3),
+							       std::pair<int,int>(2,4),
+							       std::pair<int,int>(3,6),
+							       std::pair<int,int>(6,2),
+							       std::pair<int,int>(6,3),
+							       std::pair<int,int>(6,4),
+							       std::pair<int,int>(6,6),
+							       std::pair<int,int>(6,12) };
+  regina::Triangulation<3> trig;
+  std::vector<O3Tetrahedron*> tets;
+};
+
+#endif
