@@ -12,15 +12,18 @@ class O3Triangulation {
  public:
   O3Triangulation();
   O3Triangulation(const O3Triangulation& M);
-  O3Triangulation& operator=(const O3Triangulation& M);
+  //O3Triangulation& operator=(const O3Triangulation& M);
   ~O3Triangulation();
 
   O3Tetrahedron* newTetrahedron();
-  //O3Tetrahedron* tetrahedron(int index); 
+  O3Tetrahedron* tetrahedron(int index);
   std::vector<std::pair<int,int>> getOpenFaces();
-  std::string isoSig() { return trig.isoSig(); }
   bool anglesAreValid();
   void printDihedralAngles();
+  
+  std::string isoSig() { return trig.isoSig(); }
+  int size() { return trig.size()/2; }
+  int true_size() { return trig.size(); }
     
  private:
   const int edge_labels[4][4] = { {0, 3, 2, 6},

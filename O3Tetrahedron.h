@@ -7,12 +7,15 @@
 class O3Tetrahedron {
  public:
   O3Tetrahedron(regina::Triangulation<3>* trig);
+  O3Tetrahedron(regina::Triangulation<3>* trig, int s0Index, int s1Index);
 
   void join(int myFace, O3Tetrahedron* you);
   bool isOpen(int f);
   //std::pair<int, int> dihedralAngle(int v1, int v2);
 
   std::vector<std::pair<int, int>> dihedralAngles();
+
+  int underlyingIndex(int tet);
 
   static const int v = 0;
   static const int f0 = 1;

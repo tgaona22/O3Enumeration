@@ -8,10 +8,29 @@ O3Tetrahedron::O3Tetrahedron(regina::Triangulation<3>* trig) : trig(trig)
   s0->join(1, s1, glue);
 }
 
+// used when copying a triangulation
+O3Tetrahedron::O3Tetrahedron(regina::Triangulation<3>* trig, int s0Index, int s1Index) : trig(trig)
+{
+  s0 = trig->simplex(s0Index);
+  s1 = trig->simplex(s1Index);
+}
+
+int O3Tetrahedron::underlyingIndex(int tet)
+{
+  if (tet == 0) {
+    return s0->index();
+  }
+  if (tet == 1) {
+    return s1->index();
+  }
+  return -1;
+}
+
 void O3Tetrahedron::join(int myFace, O3Tetrahedron* you)
 {
   // For a given face (v, f0, f1, e) of an O3Tet and another O3Tet,
   // there is a unique way to pair faces.
+  // This function does nothing if the corresponding face in you is not open.
   if (myFace == v) {
     // v always glues to v.
     // If corresponding face of you is not open, do nothing.
@@ -41,14 +60,16 @@ void O3Tetrahedron::join(int myFace, O3Tetrahedron* you)
   }
   else if (myFace == e) {
     // e always glues to e.
-    if (you == this) {
-      // Glue e to itself.
-      s0->join(3, s1, glue);
-    }
-    else {
-      // Glue e to e in the other tetrahedron
-      s0->join(3, you->s1, glue);
-      (you->s0)->join(3, s1, glue);
+    if (you->isOpen(e)) {
+      if (you == this) {
+	// Glue e to itself.
+	s0->join(3, s1, glue);
+      }
+      else {
+	// Glue e to e in the other tetrahedron
+	s0->join(3, you->s1, glue);
+	(you->s0)->join(3, s1, glue);
+      }
     }
   }
 }
