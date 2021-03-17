@@ -19,9 +19,12 @@ class O3Triangulation {
   O3Tetrahedron* tetrahedron(int index);
   std::vector<std::pair<int,int>> getOpenFaces();
   bool anglesAreValid();
+  std::vector<std::pair<int, int>> getDihedralAngles();
+  bool compareDihedralAngles(O3Triangulation* M);
   void printDihedralAngles();
-  
-  std::string isoSig() { return trig.isoSig(); }
+
+  std::string O3isoSig();
+  std::string reginaIsoSig() { return trig.isoSig(); }
   int size() { return trig.size()/2; }
   int true_size() { return trig.size(); }
     
@@ -44,6 +47,9 @@ class O3Triangulation {
 							       std::pair<int,int>(6,12) };
   regina::Triangulation<3> trig;
   std::vector<O3Tetrahedron*> tets;
+
+  std::vector<int> destinationSequence();
+  std::vector<int> minimalDestinationSequence();
 };
 
 #endif

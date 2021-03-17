@@ -83,6 +83,7 @@ bool O3Tetrahedron::isOpen(int f)
   return true;
 }
 
+// returns a pair (tet, f') where face f of the O3Tet is face f' of the underlying tet.
 std::pair<regina::Simplex<3>*, int> O3Tetrahedron::face(int f)
 {
   switch(f) {
@@ -98,5 +99,15 @@ std::pair<regina::Simplex<3>*, int> O3Tetrahedron::face(int f)
   return std::make_pair(nullptr, 0);
 }
 
-//std::pair<int, int> O3Tetrahedron::dihedralAngle(int v1, int v2)
+// returns the index ofthe O3Tetrahedron glued to this at face f.
+// returns -1 if the face is open.
+int O3Tetrahedron::adjacentSimplex(int f)
+{
+  std::pair<regina::Simplex<3>*, int> pair = face(f);
+  regina::Simplex<3>* adj = pair.first->adjacentSimplex(pair.second);
+  if (adj)
+    return adj->index()/2;
+  return -1;
+}
+  
 

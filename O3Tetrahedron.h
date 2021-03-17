@@ -14,6 +14,7 @@ class O3Tetrahedron {
   //std::pair<int, int> dihedralAngle(int v1, int v2);
 
   std::vector<std::pair<int, int>> dihedralAngles();
+  int adjacentSimplex(int f);
 
   int underlyingIndex(int tet);
 

@@ -14,8 +14,8 @@ int main()
   T->join(O3Tetrahedron::v, T);
   T->join(O3Tetrahedron::f0, T);
   T->join(O3Tetrahedron::e, T);
-  std::cout << M.isoSig() << "\n";
-  //M.printDihedralAngles();
+  std::cout << "isoSig = " << M.reginaIsoSig() << "\n";
+  std::cout << "O3isoSig = " << M.O3isoSig() << "\n";
   if (M.anglesAreValid())
     std::cout << "ANGLES OK\n";
 
@@ -26,11 +26,12 @@ int main()
   T1->join(O3Tetrahedron::e, T2);
   T1->join(O3Tetrahedron::f1, T2);
   T1->join(O3Tetrahedron::f0, T2);
-  std::cout << N.isoSig() << "\n";
+  std::cout << "isoSig = " << N.reginaIsoSig() << "\n";
+  std::cout << "O3isoSig = " << N.O3isoSig() << "\n";
   if (N.anglesAreValid())
     std::cout << "Angles OK\n";
-  N.printDihedralAngles();
 
+  /*
   O3Triangulation O;
   O.newTetrahedron();
   std::set<std::string> already_seen, result;
@@ -42,21 +43,24 @@ int main()
       ++it) {
     std::cout << *it << std::endl;
   }
+  */
 }
 
 void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_seen, std::set<std::string> *result, int level)
 {
   std::string padding = "";
   for (int i = 0; i < level; i++) {
-    padding += "  ";
+    padding += "  ";zzz
   }
-  const std::string isoSig = M->isoSig();
+
+  //const std::string isoSig = M->reginaIsoSig();
+  const std::string isoSig = M->O3isoSig();
 
   if (already_seen->find(isoSig) != already_seen->end()) {
     // We've already encountered this triangulation.
     return;
   }
-
+  
 
   already_seen->insert(isoSig);
 
@@ -77,11 +81,12 @@ void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_se
 
   //std::cout << "See a triangulation with " << M->size() << " O3Tets. The max is " << max_tets << "\n";
 
-  std::cout << padding << "The list of open faces is: \n" << padding;
+  /*std::cout << padding << "The list of open faces is: \n" << padding;
   for (auto iter = openFaces.begin(); iter != openFaces.end(); iter++) {
     std::cout << (*iter).first << ":" << (*iter).second << ", ";
   }
   std::cout << "\n";
+  */
 
   int fixedTetIndex = openFaces.front().first;  
   if (M->size() < max_tets) {
