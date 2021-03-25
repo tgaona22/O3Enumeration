@@ -147,6 +147,11 @@ std::vector<int> O3Triangulation::minimalDestinationSequence()
   std::vector<std::vector<int>> destSeqs;
 
   const int n = size();
+  
+  if (n == 1) {
+    return destSeq;
+  }
+    
   for (int i = 0; i < n; i++) {
     std::vector<int> L = {i};
 
@@ -156,20 +161,20 @@ std::vector<int> O3Triangulation::minimalDestinationSequence()
       D0.push_back(destSeq.at(4*i + j));
     }
 
-    // while size(L) < n... let k = size(L)
-    // at termination of each iteration size(L) increases by one.
-    for (int k = 1; k < n; k++) {
+    while (L.size() < n) {
 
-      // Choose the first index l in D0 such that l != n and l is not in L.
-      int l = 0;
-      while (l == n || std::find(L.begin(), L.end(), l) != L.end()) {
-	l++;
+      // Choose the first k in D0 such that k != n and k is not in L.
+      int index = 0;
+      int k = D0.at(index);
+      while (k == n || std::find(L.begin(), L.end(), k) != L.end()) {
+	index++;
+	k = D0.at(index);
       }
 
-      L.push_back(l);
-      // Add T(l,0), T(l,1), T(l,2), T(l,3) to D0
+      L.push_back(k);
+      // Add T(k,0), T(k,1), T(k,2), T(k,3) to D0
       for (int j = 0; j <= 3; j++) {
-	D0.push_back(destSeq.at(4*l + j));
+	D0.push_back(destSeq.at(4*k + j));
       }
     }
     // When the above terminates, D0 should be a list of length 4n and L should be represent a permutation in S_n.
@@ -177,28 +182,58 @@ std::vector<int> O3Triangulation::minimalDestinationSequence()
     // Get the permutation sigma in S_n, so sigma(j) = L(j).
 
     // I would like to use regina's Perm. But it is implemented as a template class, depending on an int n
-    // which must be determined at compile time. Here our n is the size of the triangulation which is not until runtime.
+    // which must be determined at compile time. Here our n is the size of the triangulation which is known not until runtime.
     //regina::Perm sigma(L.data());
     //regina::Perm sigmaInverse = sigma.inverse();
     
     std::vector<int> sigmaInverse;
     for (int k = 0; k < n; k++) {
-      // sigmaInverse(x) = index j such that x = l_j
+      // sigmaInverse(k) = index j such that k = l_j
       int j = 0;
       while (k != L.at(j)) {
 	j++;
       }
       sigmaInverse.push_back(j);
     }
+    // sigmaInverse(n) = n by definition
+    sigmaInverse.push_back(n);
 
+    /*
+    std::cout << "L: ";
+    for (auto it = L.begin(); it != L.end(); it++) {
+      std::cout << *it << ", ";
+    }
+    std::cout << "\n";
+
+
+    std::cout << "SigmaInverse: ";
+    for (auto it = sigmaInverse.begin(); it != sigmaInverse.end(); it++) {
+      std::cout << *it << ", ";
+    }
+    std::cout << "\n";
+    */
+
+    /*
+    std::cout << "D0: ";
+    for (auto it = D0.begin(); it != D0.end(); it++) {
+      std::cout << *it << ", ";
+    }
+    std::cout << "\n";
+    */
+      
+    
     // DI is the destination sequence for the relabeling determined by L.
     std::vector<int> DI;
+    //    std::cout << "DI: ";
     for (int k = 0; k < 4*n; k++) {
       DI.push_back(sigmaInverse.at(D0.at(k)));
+      //std::cout << sigmaInverse.at(D0.at(k)) << ", ";
     }
+    //std::cout << "\n";
     destSeqs.push_back(DI);
   }
 
+  
   // Now we return the lexicographically minimal element of the two destination sequences.
   std::vector<int> isoSig = *std::min_element(destSeqs.begin(), destSeqs.end(), compareSequences);
   return isoSig;

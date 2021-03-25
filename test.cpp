@@ -9,6 +9,7 @@ void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_se
 
 int main()
 {
+  /*
   O3Triangulation M;
   O3Tetrahedron *T = M.newTetrahedron();
   T->join(O3Tetrahedron::v, T);
@@ -30,31 +31,52 @@ int main()
   std::cout << "O3isoSig = " << N.O3isoSig() << "\n";
   if (N.anglesAreValid())
     std::cout << "Angles OK\n";
+  */
 
   /*
+  O3Triangulation M;
+  O3Tetrahedron *T0 = M.newTetrahedron();
+  O3Tetrahedron *T1 = M.newTetrahedron();
+  O3Tetrahedron *T2 = M.newTetrahedron();
+
+  T0->join(O3Tetrahedron::f0, T0);
+  T0->join(O3Tetrahedron::v, T0);
+  T0->join(O3Tetrahedron::e, T1);
+
+  T1->join(O3Tetrahedron::v, T2);
+  T1->join(O3Tetrahedron::f0, T2);
+
+  T2->join(O3Tetrahedron::e, T2);
+  T2->join(O3Tetrahedron::f0, T1);
+
+  //std::cout << "destination sequence: " << M.dest
+  std::cout << "O3IsoSig: " << M.O3isoSig() << "\n";
+  */
+
   O3Triangulation O;
   O.newTetrahedron();
   std::set<std::string> already_seen, result;
   
-  recurse(&O, 2, &already_seen, &result, 0);
+  recurse(&O, 3, &already_seen, &result, 0);
 
   for(std::set<std::string>::const_iterator it = result.begin();
       it != result.end();
       ++it) {
     std::cout << *it << std::endl;
   }
-  */
+
 }
 
 void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_seen, std::set<std::string> *result, int level)
 {
   std::string padding = "";
   for (int i = 0; i < level; i++) {
-    padding += "  ";zzz
+    padding += "  ";
   }
 
   //const std::string isoSig = M->reginaIsoSig();
   const std::string isoSig = M->O3isoSig();
+  //std::cout << "O3isoSig: " << isoSig << "\n";
 
   if (already_seen->find(isoSig) != already_seen->end()) {
     // We've already encountered this triangulation.
@@ -71,15 +93,14 @@ void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_se
   // If there are no open faces, we're done with this triangulation.
   if (openFaces.empty()) {
     // If the dihedral angles are in the permissible set, add this triangulation to our list.
-    std::cout << "No open faces for " << isoSig << "\n";
-    M->printDihedralAngles();
+    std::cout << "No open faces for " << M->reginaIsoSig() << "\n";
+    std::cout << "O3IsoSig = " << M->O3isoSig() << "\n";
     if (M->anglesAreValid()) {
+      std::cout << "ANGLES OK\n";
       result->insert(isoSig);
     }
     return;
   }
-
-  //std::cout << "See a triangulation with " << M->size() << " O3Tets. The max is " << max_tets << "\n";
 
   /*std::cout << padding << "The list of open faces is: \n" << padding;
   for (auto iter = openFaces.begin(); iter != openFaces.end(); iter++) {
