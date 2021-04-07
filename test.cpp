@@ -59,11 +59,11 @@ int main()
   
   recurse(&O, 3, &already_seen, &result, 0);
 
-  for(std::set<std::string>::const_iterator it = result.begin();
+  /*  for(std::set<std::string>::const_iterator it = result.begin();
       it != result.end();
       ++it) {
     std::cout << *it << std::endl;
-  }
+    }*/
 
 }
 
@@ -93,11 +93,9 @@ void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_se
   // If there are no open faces, we're done with this triangulation.
   if (openFaces.empty()) {
     // If the dihedral angles are in the permissible set, add this triangulation to our list.
-    std::cout << "No open faces for " << M->reginaIsoSig() << "\n";
-    std::cout << "O3IsoSig = " << M->O3isoSig() << "\n";
     if (M->anglesAreValid()) {
-      std::cout << "ANGLES OK\n";
       result->insert(isoSig);
+      std::cout << isoSig << "\n" << M->reginaIsoSig() << "\n";
     }
     return;
   }
@@ -133,8 +131,17 @@ void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_se
     if (M->tetrahedron(fixedTetIndex)->isOpen(f)) {
       // Iterate over all tetrahedra T and glue to face f of the fixed tetrahedron if possible.
       for (int i=0; i < M->size(); i++) {
-	// Only copy the triangulation if the correct face is open in the other tetrahedron.
-	if (M->tetrahedron(i)->isOpen(f)) {
+
+	// Only copy the triangulation if the correct face f2 is open in the other tetrahedron.
+	int f2 = f;
+	if (f == 1) {
+	  f2 = 2;
+	}
+	else if (f == 2) {
+	  f2 = 1;
+	}
+	
+	if (M->tetrahedron(i)->isOpen(f2)) {
 	  // Copy the triangulation
 	  O3Triangulation N(*M);
 	  // Get the fixed face.
