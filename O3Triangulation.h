@@ -5,6 +5,7 @@
 #include <string>
 #include <engine.h>
 #include <triangulation/dim3.h>
+#include <triangulation/dim2.h>
 
 class O3Tetrahedron;
 
@@ -12,6 +13,7 @@ class O3Triangulation {
  public:
   O3Triangulation();
   O3Triangulation(const O3Triangulation& M);
+  O3Triangulation(std::string O3IsoSig);
   //O3Triangulation& operator=(const O3Triangulation& M);
   ~O3Triangulation();
 

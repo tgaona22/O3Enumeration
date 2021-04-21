@@ -1,79 +1,48 @@
 #include "O3Triangulation.h"
 #include "O3Tetrahedron.h"
 
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <string>
+
+#include <chrono>
+using namespace std::chrono;
 
 void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_seen, std::set<std::string> *result, int level);
 
 int main()
 {
   /*
-  O3Triangulation M;
-  O3Tetrahedron *T = M.newTetrahedron();
-  T->join(O3Tetrahedron::v, T);
-  T->join(O3Tetrahedron::f0, T);
-  T->join(O3Tetrahedron::e, T);
-  std::cout << "isoSig = " << M.reginaIsoSig() << "\n";
-  std::cout << "O3isoSig = " << M.O3isoSig() << "\n";
-  if (M.anglesAreValid())
-    std::cout << "ANGLES OK\n";
-
-  O3Triangulation N;
-  O3Tetrahedron *T1 = N.newTetrahedron();
-  O3Tetrahedron *T2 = N.newTetrahedron();
-  T1->join(O3Tetrahedron::v, T2);
-  T1->join(O3Tetrahedron::e, T2);
-  T1->join(O3Tetrahedron::f1, T2);
-  T1->join(O3Tetrahedron::f0, T2);
-  std::cout << "isoSig = " << N.reginaIsoSig() << "\n";
-  std::cout << "O3isoSig = " << N.O3isoSig() << "\n";
-  if (N.anglesAreValid())
-    std::cout << "Angles OK\n";
-  */
-
-  /*
-  O3Triangulation M;
-  O3Tetrahedron *T0 = M.newTetrahedron();
-  O3Tetrahedron *T1 = M.newTetrahedron();
-  O3Tetrahedron *T2 = M.newTetrahedron();
-
-  T0->join(O3Tetrahedron::f0, T0);
-  T0->join(O3Tetrahedron::v, T0);
-  T0->join(O3Tetrahedron::e, T1);
-
-  T1->join(O3Tetrahedron::v, T2);
-  T1->join(O3Tetrahedron::f0, T2);
-
-  T2->join(O3Tetrahedron::e, T2);
-  T2->join(O3Tetrahedron::f0, T1);
-
-  //std::cout << "destination sequence: " << M.dest
-  std::cout << "O3IsoSig: " << M.O3isoSig() << "\n";
-  */
-
   O3Triangulation O;
   O.newTetrahedron();
   std::set<std::string> already_seen, result;
+
+  auto start = high_resolution_clock::now();
+  recurse(&O, 10, &already_seen, &result, 0);
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<minutes>(stop-start);
+  std::cout << "Execution time: " << duration.count() << " minutes.\n";
+  */
+
+  // Read in a list of O3IsoSigs and construct the corresponding triangulations.
+  std::vector<O3Triangulation> trigs;
+  std::ifstream file("../data.txt");
+  std::string sig;
+
+  while (std::getline(file, sig)) {
+    O3Triangulation M(sig);
+    trigs.push_back(M);
+    if (sig.compare(M.O3isoSig()) != 0) {
+      std::cout << "C'est probleme!\n";
+    }
+    std::cout << M.O3isoSig() << "\n";
+  }
   
-  recurse(&O, 3, &already_seen, &result, 0);
-
-  /*  for(std::set<std::string>::const_iterator it = result.begin();
-      it != result.end();
-      ++it) {
-    std::cout << *it << std::endl;
-    }*/
-
 }
 
 void recurse(O3Triangulation *M, int max_tets, std::set<std::string> *already_seen, std::set<std::string> *result, int level)
 {
-  std::string padding = "";
-  for (int i = 0; i < level; i++) {
-    padding += "  ";
-  }
-
   //const std::string isoSig = M->reginaIsoSig();
   const std::string isoSig = M->O3isoSig();
   //std::cout << "O3isoSig: " << isoSig << "\n";

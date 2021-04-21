@@ -16,6 +16,29 @@ O3Triangulation::O3Triangulation(const O3Triangulation& M) : trig(M.trig)
   }
 }
 
+// Construct a triangulation from Mark's signature.
+// We assume that O3IsoSig is a string of length 4*n containing only digits from 0 to n-1. 
+O3Triangulation::O3Triangulation(std::string O3IsoSig)
+{
+  if (O3IsoSig.length() % 4 == 0) {
+    int n = O3IsoSig.length() / 4;
+
+    for (int i = 0; i < n; i++) {
+      tets.push_back(new O3Tetrahedron(&trig));
+    }
+
+    for (int j = 0; j < n; j++) {
+      // For each tetrahedron, iterate over its faces and glue according to the O3IsoSig.
+      // Namely, face f of tetrahedron j gets glued to tetrahedron whose index is O3IsoSig[4j + f].
+      O3Tetrahedron *T = tets.at(j);
+      for (int f = 0; f <= 3; f++) {
+	char t = O3IsoSig.at(4*j + f);
+	T->join(f, tets.at(std::atoi(&t)));
+      }
+    }
+  }
+}
+
 /*O3Triangulation& O3Triangulation::operator=(const O3Triangulation& M)
 {
   if (&M != this) {
