@@ -11,6 +11,7 @@ class O3Tetrahedron {
 
   void join(int myFace, O3Tetrahedron* you);
   bool isOpen(int f);
+  bool eIdentified() { return adjacentSimplex(O3Tetrahedron::e) == index(); }
   //std::pair<int, int> dihedralAngle(int v1, int v2);
 
   std::vector<std::pair<int, int>> dihedralAngles();

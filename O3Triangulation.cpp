@@ -258,19 +258,33 @@ void O3Triangulation::computeCuspCrossSections()
 
   }
 
-  // Testing purposes, print # of cusps and list of tetrahedra in each equivalence class.
   std::cout << "Number of cusps: " << cusps.size() << "\n";
-  for (auto set = cusps.begin(); set != cusps.end(); set++) {
-    std::cout << "{ ";
-    for (auto elt = set->begin(); elt != set->end(); elt++) {
-      std::cout << *elt << " ";
-    }
-    std::cout << "}\n";
-  }
 
-  struct Triangle {
+  class Triangle {
+  public:
     regina::Simplex<2> *triangle;
     int tet_index;
+    int type; // 0 for (3,3,3) triangle, 1 for (2,3,6) triangle
+
+    Triangle(regina::Simplex<2> *t, int i, int tt) : triangle(t), tet_index(i), type(tt) {}
+    // returns the angle as a multiple of pi/6.
+    int angle(int v)
+    {
+      if (type == 0) {
+	return 2;
+      }
+      else {
+	if (v == 0) {
+	  return 3;
+	}
+	else if (v == 1) {
+	  return 2;
+	}
+	else {
+	  return 1;
+	}
+      }
+    }
   };
   
   std::vector<regina::Triangulation<2>> crossSections;
@@ -284,17 +298,33 @@ void O3Triangulation::computeCuspCrossSections()
     int tri_index = 0;
     for (auto t = cusp->begin(); t != cusp->end(); t++) {
       O3Tetrahedron *T = tetrahedron(*t);
-      Triangle Tri;
-      Tri.triangle = crossSection.newSimplex();
-      Tri.tet_index = T->index();
-      T->setTriangleIndex(tri_index);
-      tri_index = tri_index + 1;
-      triangles.push_back(Tri);
+      int type = 0;
+      if (T->eIdentified()) {
+	type = 1;
+	Triangle t1(crossSection.newSimplex(), T->index(), type);
+	Triangle t2(crossSection.newSimplex(), T->index(), type);
+	//join these two 2,3,6 triangles along an edge so they both make a (3,3,3) triangle.
+	regina::Perm<3> id;
+	t1.triangle->join(1, t2.triangle, id);
+	// also glue edge e to itself
+	t1.triangle->join(2, t2.triangle, id);
+	
+	T->setTriangleIndex(tri_index);
+	tri_index = tri_index + 2;
+	triangles.push_back(t1);
+	triangles.push_back(t2);
+      }
+      else {
+	Triangle t1(crossSection.newSimplex(), T->index(), type);
+	T->setTriangleIndex(tri_index);
+	tri_index = tri_index + 1;
+	triangles.push_back(t1);
+      }
     }
 
     // For each triangle, make the appropriate gluings.
-    // the gluing map in each case is (0,1,2) -> (1,0,2).
     regina::Perm<3> gluing(0, 1);
+    regina::Perm<3> id;
     for (int i = 0; i < triangles.size(); i++) {
       Triangle t1 = triangles[i];
       O3Tetrahedron *T1 = tetrahedron(t1.tet_index);
@@ -302,74 +332,63 @@ void O3Triangulation::computeCuspCrossSections()
       for (int f = 1; f <= 3; f++) {
 	O3Tetrahedron *T2 = tetrahedron(T1->adjacentSimplex(f));
 	Triangle t2 = triangles[T2->getTriangleIndex()];
-	// Don't do anything in the case that T1 has e glued to itself.
-	if (!(f == 3 && T2 == T1)) {
-	  t1.triangle->join(f-1, t2.triangle, gluing);
+
+	// t1 and t2 are both 3,3,3 triangles
+	if (!T1->eIdentified() && !T2->eIdentified()) {
+	  if (!t1.triangle->adjacentSimplex(f-1) && !t2.triangle->adjacentSimplex(gluing[f-1])) {
+	    t1.triangle->join(f-1, t2.triangle, gluing);
+	  }
+	}
+	// t1 is 2,3,6 and t2 is 3,3,3
+	else if (T1->eIdentified() && !T2->eIdentified()) {
+	  if (f == O3Tetrahedron::f0 && !t2.triangle->adjacentSimplex(0) && !triangles[T1->getTriangleIndex() + 1].triangle->adjacentSimplex(0)) {
+	    triangles[T1->getTriangleIndex() + 1].triangle->join(0, t2.triangle, id);
+	  }
+	  if (f == O3Tetrahedron::f1 && !t2.triangle->adjacentSimplex(0) && !t1.triangle->adjacentSimplex(0)) {
+	    t1.triangle->join(0, t2.triangle, id);
+	  }
+	}
+	// t1 and t2 are both 2,3,6 triangles
+	else if (T1->eIdentified() && T2->eIdentified()) {
+	  if (f == O3Tetrahedron::f0 && !t2.triangle->adjacentSimplex(0) && !triangles[T1->getTriangleIndex() + 1].triangle->adjacentSimplex(0)) {
+	    triangles[T1->getTriangleIndex() + 1].triangle->join(0, t2.triangle, id);
+	  }
+	  if (f == O3Tetrahedron::f1 && !t1.triangle->adjacentSimplex(0) && !triangles[T2->getTriangleIndex() + 1].triangle->adjacentSimplex(0)) {
+	    t1.triangle->join(0, triangles[T2->getTriangleIndex() + 1].triangle, id);
+	  }
 	}
       }
     }
 
     crossSections.push_back(crossSection);
     // After the above loop terminates, crossSection is a 2D triangulation which has been glued up according to
-    // how the original 3D triangulation is glued up, except for the case when a tetrahedron has face e glued to itself.
+    // how the original 3D triangulation is glued up.
 
     // Next step is to determine all the cone points and their cone angles. 
 
-    // Iterate over the vertices of the triangulation. The cone angle of a vertex of degree k is
-    // k * 2Pi/6. The possibilities for k should be 1, 2, 3, or 6.
     std::vector<int> conePoints;
     const regina::FaceList<2, 0>& vertices = crossSection.faces<0>();
-    std::vector<regina::Face<2,0>*> alreadySeenVertices;
+
     for (int i = 0; i < vertices.size(); i++) {
       regina::Face<2, 0> *vertex = vertices[i];
-      // if we haven't encountered this vertex yet...
-      if (std::find(alreadySeenVertices.begin(), alreadySeenVertices.end(), vertex) == alreadySeenVertices.end()) {
-	// we have seen the vertex
-	alreadySeenVertices.push_back(vertex);
-
-	int degree = vertex->degree();
-	
-	// For each embedding of the vertex
-	for (auto emb = vertex->begin(); emb != vertex->end(); emb++) {
-
-	  // find its triangle, so we can access the associated tetrahedron.
-	  regina::Simplex<2> *t = emb->simplex();
-	  Triangle tri = *std::find_if(triangles.begin(), triangles.end(),
-				    [t](Triangle Tri) -> bool {
-				      return (Tri.triangle == t);
-				    });
-	  // if that tetrahedron has face e glued to itself
-	  O3Tetrahedron *T = tetrahedron(tri.tet_index);
-	  if (T->adjacentSimplex(O3Tetrahedron::e) == T->index()) {
-	    // the vertex is either f0 or f1 (0 or 1)
-	    regina::Face<2,0> *toIdentify;
-	    if (emb->face() == 0) {
-	      toIdentify = tri.triangle->face<0>(1);
-	    }
-	    else {
-	      toIdentify = tri.triangle->face<0>(0);
-	    }
-	    // add the number of embeddings of this vertex which in the real triangulation
-	    // would be identified with the current vertex. This unfortunate kludge is necessary
-	    // since I can't glue an edge to itself in a regina triangulation.
-	    if (toIdentify != vertex) {
-	      degree = degree + toIdentify->degree();
-	      alreadySeenVertices.push_back(toIdentify);
-	    }
-	  }
-	}
-
-	
-	conePoints.push_back(degree);
-	
+      // The resulting angle around the vertex will be degree * pi/6
+      int degree = 0;
+      // For each embedding of the vertex
+      for (auto emb = vertex->begin(); emb != vertex->end(); emb++) {
+	// find its triangle
+	regina::Simplex<2> *t = emb->simplex();
+	Triangle tri = *std::find_if(triangles.begin(), triangles.end(),
+				     [t](Triangle Tri) -> bool {
+				       return (Tri.triangle == t);
+				     });
+	// find the angle around the vertex
+	degree = degree + tri.angle(emb->face());
       }
-    }
-    // Also, we produce a cone point of order 2 whenever face e is identified to itself in a tetrahedron.
-    for (int i = 0; i < size(); i++) {
-      O3Tetrahedron *T = tetrahedron(i);
-      if (T->adjacentSimplex(O3Tetrahedron::e) == i) {
-	//conePoints.push_back(2);
-	conePoints.push_back(3);
+
+      // the degree should be either 2, 4, 6, or 12. The first three correspond to cone points of order 6, 3, and 2.
+      if (degree <= 6) {
+	int order = 12/degree;
+	conePoints.push_back(order);
       }
     }
 
@@ -378,6 +397,12 @@ void O3Triangulation::computeCuspCrossSections()
       std::cout << conePoints[i] << " ";
     }
     std::cout << "\n";
+
+    std::cout << "Euler characteristic: " << crossSection.eulerCharTri() << "\n";
+
+    std::cout << "Number of boundary components: " << crossSection.countBoundaryComponents() << "\n";
+
+    
     
   }
 
