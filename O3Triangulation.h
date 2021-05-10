@@ -30,6 +30,8 @@ class O3Triangulation {
   int size() { return trig.size()/2; }
   int true_size() { return trig.size(); }
 
+  void computeCuspCrossSections();
+
   std::vector<int> destinationSequence();
  private:
   const int edge_labels[4][4] = { {0, 3, 2, 6},

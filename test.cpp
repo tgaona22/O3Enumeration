@@ -36,7 +36,13 @@ int main()
     if (sig.compare(M.O3isoSig()) != 0) {
       std::cout << "C'est probleme!\n";
     }
-    std::cout << M.O3isoSig() << "\n";
+  }
+
+  for (auto trig = trigs.begin(); trig != trigs.end(); trig++) {
+    std::cout << trig->O3isoSig() << "\n";
+    trig->computeCuspCrossSections();
+    std::cout << "\n";
+    
   }
   
 }

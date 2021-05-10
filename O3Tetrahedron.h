@@ -17,6 +17,10 @@ class O3Tetrahedron {
   int adjacentSimplex(int f);
 
   int underlyingIndex(int tet);
+  int index() { return s0->index()/2; }
+
+  void setTriangleIndex(int index) { triangle_index = index; }
+  int getTriangleIndex() { return triangle_index; }
 
   static const int v = 0;
   static const int f0 = 1;
@@ -33,7 +37,8 @@ class O3Tetrahedron {
 
   std::pair<regina::Simplex<3>*, int> face(int f);
   //  regina::Edge<3> edge(int v1, int v2);
-  
+
+  int triangle_index;
   
 };
 

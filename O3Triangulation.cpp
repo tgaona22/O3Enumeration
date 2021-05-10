@@ -2,6 +2,7 @@
 #include "O3Tetrahedron.h"
 
 #include <algorithm>
+#include <set>
 
 O3Triangulation::O3Triangulation()
 {
@@ -38,22 +39,6 @@ O3Triangulation::O3Triangulation(std::string O3IsoSig)
     }
   }
 }
-
-/*O3Triangulation& O3Triangulation::operator=(const O3Triangulation& M)
-{
-  if (&M != this) {
-    for (auto iter = tets.begin(); iter != tets.end(); iter++) {
-      delete *iter;
-    }
-    tets.clear();
-
-    trig(M.trig); // reassign the triangulation
-    for (auto iter = M.tets.begin(); iter != M.tets.end(); iter++) {
-      tets.push_back(new O3Tetrahedron(&trig, (*iter)->underlyingIndex(0), (*iter)->underlyingIndex(1)));
-    }
-  }
-  return *this;
-  }*/
 
 O3Triangulation::~O3Triangulation()
 {
@@ -204,11 +189,6 @@ std::vector<int> O3Triangulation::minimalDestinationSequence()
 
     // Get the permutation sigma in S_n, so sigma(j) = L(j).
 
-    // I would like to use regina's Perm. But it is implemented as a template class, depending on an int n
-    // which must be determined at compile time. Here our n is the size of the triangulation which is known not until runtime.
-    //regina::Perm sigma(L.data());
-    //regina::Perm sigmaInverse = sigma.inverse();
-    
     std::vector<int> sigmaInverse;
     for (int k = 0; k < n; k++) {
       // sigmaInverse(k) = index j such that k = l_j
@@ -221,42 +201,14 @@ std::vector<int> O3Triangulation::minimalDestinationSequence()
     // sigmaInverse(n) = n by definition
     sigmaInverse.push_back(n);
 
-    /*
-    std::cout << "L: ";
-    for (auto it = L.begin(); it != L.end(); it++) {
-      std::cout << *it << ", ";
-    }
-    std::cout << "\n";
-
-
-    std::cout << "SigmaInverse: ";
-    for (auto it = sigmaInverse.begin(); it != sigmaInverse.end(); it++) {
-      std::cout << *it << ", ";
-    }
-    std::cout << "\n";
-    */
-
-    /*
-    std::cout << "D0: ";
-    for (auto it = D0.begin(); it != D0.end(); it++) {
-      std::cout << *it << ", ";
-    }
-    std::cout << "\n";
-    */
-      
-    
     // DI is the destination sequence for the relabeling determined by L.
     std::vector<int> DI;
-    //    std::cout << "DI: ";
     for (int k = 0; k < 4*n; k++) {
       DI.push_back(sigmaInverse.at(D0.at(k)));
-      //std::cout << sigmaInverse.at(D0.at(k)) << ", ";
     }
-    //std::cout << "\n";
     destSeqs.push_back(DI);
   }
 
-  
   // Now we return the lexicographically minimal element of the two destination sequences.
   std::vector<int> isoSig = *std::min_element(destSeqs.begin(), destSeqs.end(), compareSequences);
   return isoSig;
@@ -270,4 +222,164 @@ std::string O3Triangulation::O3isoSig()
     sig += std::to_string(*iter);
   }
   return sig;
+}
+
+void O3Triangulation::computeCuspCrossSections()
+{
+  // First, we need to sort ideal vertices into equivalence classes.
+  // I'll store this as a list of sets of tetrahedra indices, where tetrahedra in the
+  // same list have their ideal vertices identified.
+  std::vector<std::set<int>> cusps;
+
+  for (int t = 0; t < size(); t++) {
+    // is there a set containing this index?
+    // if not, create one.
+    // if there is, we will be adding to that set.
+
+    bool addToList = true;
+    std::vector<std::set<int>>::iterator cusp;
+    for (auto set = cusps.begin(); set != cusps.end(); set++) {
+      if (set->find(t) != set->end()) {
+	cusp = set;
+	addToList = false;
+      }
+    }
+    if (addToList) {
+      std::set<int> set;
+      cusps.push_back(set);
+      cusp = cusps.end() - 1;
+    }
+
+    // for tetrahedron t, add to the class indices of the tetrahedra glued to faces e, f0, f1 of tet t.
+    O3Tetrahedron *T = tetrahedron(t);
+    for (int f = 1; f <= 3; f++) {
+      cusp->insert(T->adjacentSimplex(f));
+    }
+
+  }
+
+  // Testing purposes, print # of cusps and list of tetrahedra in each equivalence class.
+  std::cout << "Number of cusps: " << cusps.size() << "\n";
+  for (auto set = cusps.begin(); set != cusps.end(); set++) {
+    std::cout << "{ ";
+    for (auto elt = set->begin(); elt != set->end(); elt++) {
+      std::cout << *elt << " ";
+    }
+    std::cout << "}\n";
+  }
+
+  struct Triangle {
+    regina::Simplex<2> *triangle;
+    int tet_index;
+  };
+  
+  std::vector<regina::Triangulation<2>> crossSections;
+  // Construct a triangulation for the cross section of each cusp.
+  for (auto cusp = cusps.begin(); cusp != cusps.end(); cusp++) {
+
+    regina::Triangulation<2> crossSection;
+    std::vector<Triangle> triangles;
+
+    // Create a triangle for each tetrahedron.
+    int tri_index = 0;
+    for (auto t = cusp->begin(); t != cusp->end(); t++) {
+      O3Tetrahedron *T = tetrahedron(*t);
+      Triangle Tri;
+      Tri.triangle = crossSection.newSimplex();
+      Tri.tet_index = T->index();
+      T->setTriangleIndex(tri_index);
+      tri_index = tri_index + 1;
+      triangles.push_back(Tri);
+    }
+
+    // For each triangle, make the appropriate gluings.
+    // the gluing map in each case is (0,1,2) -> (1,0,2).
+    regina::Perm<3> gluing(0, 1);
+    for (int i = 0; i < triangles.size(); i++) {
+      Triangle t1 = triangles[i];
+      O3Tetrahedron *T1 = tetrahedron(t1.tet_index);
+
+      for (int f = 1; f <= 3; f++) {
+	O3Tetrahedron *T2 = tetrahedron(T1->adjacentSimplex(f));
+	Triangle t2 = triangles[T2->getTriangleIndex()];
+	// Don't do anything in the case that T1 has e glued to itself.
+	if (!(f == 3 && T2 == T1)) {
+	  t1.triangle->join(f-1, t2.triangle, gluing);
+	}
+      }
+    }
+
+    crossSections.push_back(crossSection);
+    // After the above loop terminates, crossSection is a 2D triangulation which has been glued up according to
+    // how the original 3D triangulation is glued up, except for the case when a tetrahedron has face e glued to itself.
+
+    // Next step is to determine all the cone points and their cone angles. 
+
+    // Iterate over the vertices of the triangulation. The cone angle of a vertex of degree k is
+    // k * 2Pi/6. The possibilities for k should be 1, 2, 3, or 6.
+    std::vector<int> conePoints;
+    const regina::FaceList<2, 0>& vertices = crossSection.faces<0>();
+    std::vector<regina::Face<2,0>*> alreadySeenVertices;
+    for (int i = 0; i < vertices.size(); i++) {
+      regina::Face<2, 0> *vertex = vertices[i];
+      // if we haven't encountered this vertex yet...
+      if (std::find(alreadySeenVertices.begin(), alreadySeenVertices.end(), vertex) == alreadySeenVertices.end()) {
+	// we have seen the vertex
+	alreadySeenVertices.push_back(vertex);
+
+	int degree = vertex->degree();
+	
+	// For each embedding of the vertex
+	for (auto emb = vertex->begin(); emb != vertex->end(); emb++) {
+
+	  // find its triangle, so we can access the associated tetrahedron.
+	  regina::Simplex<2> *t = emb->simplex();
+	  Triangle tri = *std::find_if(triangles.begin(), triangles.end(),
+				    [t](Triangle Tri) -> bool {
+				      return (Tri.triangle == t);
+				    });
+	  // if that tetrahedron has face e glued to itself
+	  O3Tetrahedron *T = tetrahedron(tri.tet_index);
+	  if (T->adjacentSimplex(O3Tetrahedron::e) == T->index()) {
+	    // the vertex is either f0 or f1 (0 or 1)
+	    regina::Face<2,0> *toIdentify;
+	    if (emb->face() == 0) {
+	      toIdentify = tri.triangle->face<0>(1);
+	    }
+	    else {
+	      toIdentify = tri.triangle->face<0>(0);
+	    }
+	    // add the number of embeddings of this vertex which in the real triangulation
+	    // would be identified with the current vertex. This unfortunate kludge is necessary
+	    // since I can't glue an edge to itself in a regina triangulation.
+	    if (toIdentify != vertex) {
+	      degree = degree + toIdentify->degree();
+	      alreadySeenVertices.push_back(toIdentify);
+	    }
+	  }
+	}
+
+	
+	conePoints.push_back(degree);
+	
+      }
+    }
+    // Also, we produce a cone point of order 2 whenever face e is identified to itself in a tetrahedron.
+    for (int i = 0; i < size(); i++) {
+      O3Tetrahedron *T = tetrahedron(i);
+      if (T->adjacentSimplex(O3Tetrahedron::e) == i) {
+	//conePoints.push_back(2);
+	conePoints.push_back(3);
+      }
+    }
+
+    std::cout << "Cone points: ";
+    for (int i = 0; i < conePoints.size(); i++) {
+      std::cout << conePoints[i] << " ";
+    }
+    std::cout << "\n";
+    
+  }
+
+  
 }
