@@ -408,3 +408,41 @@ void O3Triangulation::computeCuspCrossSections()
 
   
 }
+
+bool O3Triangulation::checkClosedEdges()
+{
+  std::vector<regina::Face<3,1>*> closedEdges;
+  const regina::FaceList<3,1>& edges = trig.faces<1>();
+  // Iterate through the edges of the triangulation.
+  for (int i = 0; i < edges.size(); i++) {
+
+    bool isClosed = true;
+    regina::Face<3,1> *edge = edges[i];
+
+    // Iterate over all embeddings of the edge, checking that the faces adjacent to the edge
+    // are glued. If all are, the edge is closed. If one is not, the edge is open.
+    auto embedding = edge->begin();
+    while (isClosed && embedding != edge->end()) {
+      const regina::Simplex<3>* tet = embedding->simplex();
+      const regina::Perm<4>& verts = embedding->vertices();
+      // The faces adjacent to this edge are verts[2] and verts[3]. 
+      if (not tet->adjacentSimplex(verts[2]) || not tet->adjacentSimplex(verts[3])) {
+	isClosed = false;
+      }
+      embedding++;
+    }
+
+    // If the edge is closed, check that its angle is permissible.
+    if (isClosed) {
+      const regina::Perm<4>& p = edge->embedding(0).vertices();
+      int degree = edge->degree();
+      std::pair<int, int> angle = std::make_pair(edge_labels[p[0]][p[1]], degree);
+
+      if (std::find(admissible_angles.begin(), admissible_angles.end(), angle) == admissible_angles.end()) {
+	return false;
+      }
+    }
+
+  }
+  return true;
+}
