@@ -142,22 +142,17 @@ std::vector<int> O3Triangulation::destinationSequence()
   return destSeq;
 }
 
-// Helper function for sorting destination sequences
-bool compareSequences(std::vector<int> a, std::vector<int> b)
-{
-  return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
-}
-
-// See Mark's algorithm
+/* Given a triangulation with N tetrahedra, construct the N destination sequences
+   associated to the N canonical relabelings and return the lexicographically minimal one. */
 std::vector<int> O3Triangulation::minimalDestinationSequence()
 {
   std::vector<int> destSeq = destinationSequence();
-  std::vector<std::vector<int>> destSeqs;
-
+  std::vector<int> minSeq = destSeq;
+  
   const int n = size();
   
   if (n == 1) {
-    return destSeq;
+    return minSeq;
   }
     
   for (int i = 0; i < n; i++) {
@@ -206,12 +201,14 @@ std::vector<int> O3Triangulation::minimalDestinationSequence()
     for (int k = 0; k < 4*n; k++) {
       DI.push_back(sigmaInverse.at(D0.at(k)));
     }
-    destSeqs.push_back(DI);
-  }
 
-  // Now we return the lexicographically minimal element of the two destination sequences.
-  std::vector<int> isoSig = *std::min_element(destSeqs.begin(), destSeqs.end(), compareSequences);
-  return isoSig;
+    // Compare DI to the current minSeq
+    if (std::lexicographical_compare(DI.begin(), DI.end(), minSeq.begin(), minSeq.end())) {
+      // DI < minSeq
+      minSeq = DI;
+    }
+  }
+  return minSeq;
 }
 
 void O3Triangulation::computeCuspCrossSections()
