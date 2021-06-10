@@ -214,16 +214,6 @@ std::vector<int> O3Triangulation::minimalDestinationSequence()
   return isoSig;
 }
 
-std::string O3Triangulation::O3isoSig()
-{
-  std::vector<int> vec = minimalDestinationSequence();
-  std::string sig = "";
-  for (auto iter = vec.begin(); iter != vec.end(); iter++) {
-    sig += std::to_string(*iter);
-  }
-  return sig;
-}
-
 void O3Triangulation::computeCuspCrossSections()
 {
   // First, we need to sort ideal vertices into equivalence classes.
@@ -397,13 +387,6 @@ void O3Triangulation::computeCuspCrossSections()
       std::cout << conePoints[i] << " ";
     }
     std::cout << "\n";
-
-    std::cout << "Euler characteristic: " << crossSection.eulerCharTri() << "\n";
-
-    std::cout << "Number of boundary components: " << crossSection.countBoundaryComponents() << "\n";
-
-    
-    
   }
 
   

@@ -25,7 +25,7 @@ class O3Triangulation {
   bool compareDihedralAngles(O3Triangulation* M);
   void printDihedralAngles();
 
-  std::string O3isoSig();
+  std::vector<int> O3isoSig() { return minimalDestinationSequence(); }
   std::string reginaIsoSig() { return trig.isoSig(); }
   int size() { return trig.size()/2; }
   int true_size() { return trig.size(); }
@@ -55,7 +55,6 @@ class O3Triangulation {
   regina::Triangulation<3> trig;
   std::vector<O3Tetrahedron*> tets;
 
-  //std::vector<int> destinationSequence();
   std::vector<int> minimalDestinationSequence();
 };
 
