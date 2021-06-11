@@ -1,5 +1,5 @@
 all: test.o O3Tetrahedron.o O3Triangulation.o
-	g++ $$(regina-engine-config --libs) test.o O3Tetrahedron.o O3Triangulation.o -o test
+	g++ $$(regina-engine-config --libs) test.o O3Tetrahedron.o O3Triangulation.o -o enumerate
 
 test.o: test.cpp
 	g++ -g -c $$(regina-engine-config --cflags) test.cpp -o test.o

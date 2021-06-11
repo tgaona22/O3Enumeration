@@ -9,7 +9,7 @@
 #include <chrono>
 using namespace std::chrono;
 
-void recurse(O3Triangulation *M, int max_tets, std::set<std::vector<int>> *already_seen, std::set<std::vector<int>> *result, int level);
+void recurse(O3Triangulation *M, int max_tets, std::set<std::vector<int>> *already_seen, std::vector<std::set<std::vector<int>>> *result, int level);
 void printIsoSig(const std::vector<int> &vec);
 
 int main(int argc, char **argv)
@@ -23,14 +23,20 @@ int main(int argc, char **argv)
   
   O3Triangulation O;
   O.newTetrahedron();
-  std::set<std::vector<int>> already_seen, result;
+  std::set<std::vector<int>> already_seen;
+  // Structure the results as a vector of sets, where result[I] is the set of triangulations with I+1 tetrahedra.
+  std::vector<std::set<std::vector<int>>> result(N);
 
-  auto start = high_resolution_clock::now();
   recurse(&O, N, &already_seen, &result, 0);
-  auto stop = high_resolution_clock::now();
-  auto duration = duration_cast<seconds>(stop-start);
-  std::cout << "Execution time: " << duration.count() << " seconds.\n";
 
+  for (int i = 0; i < N; i++) {
+    std::cout << result[i].size() << " triangulations with " << (i+1) << " tetrahedra:\n";
+    for (auto it = result[i].begin(); it != result[i].end(); it++) {
+      printIsoSig(*it);
+    }
+  }
+      
+  
   /* COMPUTING CUSP DATA
   // Read in a file containing a list of minimal destination sequences.
   if (argc < 1 || argc > 2) {
@@ -50,7 +56,7 @@ int main(int argc, char **argv)
   
 }
 
-void recurse(O3Triangulation *M, int max_tets, std::set<std::vector<int>> *already_seen, std::set<std::vector<int>> *result, int level)
+void recurse(O3Triangulation *M, int max_tets, std::set<std::vector<int>> *already_seen, std::vector<std::set<std::vector<int>>> *result, int level)
 {
   // If there are closed edges with invalid angles, throw away this triangulation.
   if (not M->checkClosedEdges()) {
@@ -73,8 +79,7 @@ void recurse(O3Triangulation *M, int max_tets, std::set<std::vector<int>> *alrea
   // If there are no open faces, we're done with this triangulation.
   if (openFaces.empty()) {
     // If we arrive here, we are guaranteed that all dihedral angles are valid.
-    result->insert(isoSig);
-    printIsoSig(isoSig);
+    result->at(M->size()-1).insert(isoSig);
     return;
   }
 
@@ -132,8 +137,14 @@ void recurse(O3Triangulation *M, int max_tets, std::set<std::vector<int>> *alrea
 
 void printIsoSig(const std::vector<int> &vec)
 {
+  int count = 0;
   for (int i = 0; i < vec.size(); i++) {
     std::cout << vec[i];
+    count = count + 1;
+    if (count == 4) {
+      std::cout << " ";
+      count = 0;
+    }
   }
   std::cout << "\n";
 }

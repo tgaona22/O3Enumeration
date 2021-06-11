@@ -412,15 +412,20 @@ bool O3Triangulation::checkClosedEdges()
       embedding++;
     }
 
+    const regina::Perm<4>& p = edge->embedding(0).vertices();
+    int degree = edge->degree();
     // If the edge is closed, check that its angle is permissible.
     if (isClosed) {
-      const regina::Perm<4>& p = edge->embedding(0).vertices();
-      int degree = edge->degree();
       std::pair<int, int> angle = std::make_pair(edge_labels[p[0]][p[1]], degree);
-
       if (std::find(admissible_angles.begin(), admissible_angles.end(), angle) == admissible_angles.end()) {
 	return false;
       }
+    }
+    else {
+      // If the edge is open, check that its degree does not exceed the maximum possible for that edge label.
+      if (degree > 2*edge_labels[p[0]][p[1]]) {
+	return false;
+      }	
     }
 
   }
