@@ -19,10 +19,10 @@ O3Triangulation::O3Triangulation(const O3Triangulation& M) : trig(M.trig)
 
 // Construct a triangulation from Mark's signature.
 // We assume that O3IsoSig is a string of length 4*n containing only digits from 0 to n-1. 
-O3Triangulation::O3Triangulation(std::string O3IsoSig)
+O3Triangulation::O3Triangulation(const std::vector<int>& isoSig)
 {
-  if (O3IsoSig.length() % 4 == 0) {
-    int n = O3IsoSig.length() / 4;
+  if (isoSig.size() % 4 == 0) {
+    int n = isoSig.size() / 4;
 
     for (int i = 0; i < n; i++) {
       tets.push_back(new O3Tetrahedron(&trig));
@@ -33,8 +33,8 @@ O3Triangulation::O3Triangulation(std::string O3IsoSig)
       // Namely, face f of tetrahedron j gets glued to tetrahedron whose index is O3IsoSig[4j + f].
       O3Tetrahedron *T = tets.at(j);
       for (int f = 0; f <= 3; f++) {
-	char t = O3IsoSig.at(4*j + f);
-	T->join(f, tets.at(std::atoi(&t)));
+	int t = isoSig.at(4*j + f);
+	T->join(f, tets.at(t));
       }
     }
   }
@@ -301,6 +301,7 @@ void O3Triangulation::computeCuspCrossSections()
 	triangles.push_back(t1);
 	triangles.push_back(t2);
       }
+      // ADD ELSE IF TO HANDLE T(f0) glues to T(f1).
       else {
 	Triangle t1(crossSection.newSimplex(), T->index(), type);
 	T->setTriangleIndex(tri_index);

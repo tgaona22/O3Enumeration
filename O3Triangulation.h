@@ -13,7 +13,7 @@ class O3Triangulation {
  public:
   O3Triangulation();
   O3Triangulation(const O3Triangulation& M);
-  O3Triangulation(std::string O3IsoSig);
+  O3Triangulation(const std::vector<int>& isoSig);
   //O3Triangulation& operator=(const O3Triangulation& M);
   ~O3Triangulation();
 
