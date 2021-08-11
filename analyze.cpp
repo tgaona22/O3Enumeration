@@ -24,8 +24,10 @@ int main(int argc, char **argv)
     std::vector<int> destSeq = readIsoSig(sig);
     
     O3Triangulation T(destSeq);
+    std::cout << T.size() << " tetrahedra: ";
     printIsoSig(T.O3isoSig());
-    
+    std::cout << "\n";
+    T.computeCuspCrossSections();
   }
 }
 
@@ -40,7 +42,6 @@ void printIsoSig(const std::vector<int> &vec)
       count = 0;
     }
   }
-  std::cout << "\n";
 }
 
 std::vector<int> readIsoSig(std::string sig)

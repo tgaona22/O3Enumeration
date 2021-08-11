@@ -12,6 +12,7 @@ class O3Tetrahedron {
   void join(int myFace, O3Tetrahedron* you);
   bool isOpen(int f);
   bool eIdentified() { return adjacentSimplex(O3Tetrahedron::e) == index(); }
+  bool fIdentified() { return adjacentSimplex(O3Tetrahedron::f0) == index(); }
   //std::pair<int, int> dihedralAngle(int v1, int v2);
 
   std::vector<std::pair<int, int>> dihedralAngles();
@@ -20,6 +21,8 @@ class O3Tetrahedron {
   int underlyingIndex(int tet);
   int index() { return s0->index()/2; }
 
+  // triangle_index always points to the first triangle in the case that the cusp cross section
+  // of this tetrahedron is represented by two (2,3,6) triangles.
   void setTriangleIndex(int index) { triangle_index = index; }
   int getTriangleIndex() { return triangle_index; }
 

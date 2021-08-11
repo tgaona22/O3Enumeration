@@ -216,66 +216,81 @@ void O3Triangulation::computeCuspCrossSections()
   // First, we need to sort ideal vertices into equivalence classes.
   // I'll store this as a list of sets of tetrahedra indices, where tetrahedra in the
   // same list have their ideal vertices identified.
-  std::vector<std::set<int>> cusps;
+  //std::vector<std::set<int>> cusps;
+  std::vector<std::vector<int>> cusps;
 
-  for (int t = 0; t < size(); t++) {
-    // is there a set containing this index?
-    // if not, create one.
-    // if there is, we will be adding to that set.
-
-    bool addToList = true;
-    std::vector<std::set<int>>::iterator cusp;
-    for (auto set = cusps.begin(); set != cusps.end(); set++) {
-      if (set->find(t) != set->end()) {
-	cusp = set;
-	addToList = false;
-      }
-    }
-    if (addToList) {
-      std::set<int> set;
-      cusps.push_back(set);
-      cusp = cusps.end() - 1;
-    }
-
-    // for tetrahedron t, add to the class indices of the tetrahedra glued to faces e, f0, f1 of tet t.
-    O3Tetrahedron *T = tetrahedron(t);
-    for (int f = 1; f <= 3; f++) {
-      cusp->insert(T->adjacentSimplex(f));
-    }
-
+  // Add the indices of all tetrahedra to a list of "unexamined" tetrahedra.
+  std::vector<int> unexamined;
+  for (int i = 0; i < size(); i++) {
+    unexamined.push_back(i);
   }
 
-  std::cout << "Number of cusps: " << cusps.size() << "\n";
+  while (!unexamined.empty()) {
+    std::vector<int> cusp;
+    // Pop the first element off the list of unexamined and add it to a new cusp.
+    cusp.push_back(unexamined.at(0));
 
+    int cusp_iter = 0;
+    while (cusp_iter < cusp.size()) {
+      O3Tetrahedron *T = tetrahedron(cusp.at(cusp_iter));
+      // remove the current tetrahedron from the list of unexamined.
+      // something new I learned about c++ - remove doesn't actually delete anything...
+      // it just moves them to the back of the array and gives you an iterator.
+      unexamined.erase(std::remove(unexamined.begin(), unexamined.end(), cusp.at(cusp_iter)), unexamined.end());
+
+      // look at what is glued to faces f0, f1, and e of this tetrahedron
+      // add those indices to this cusp, if not already present.
+      for (int f = 1; f <= 3; f++) {
+	int adj_index = T->adjacentSimplex(f);
+	auto found_iter = std::find(cusp.begin(), cusp.end(), adj_index);
+	if (found_iter == cusp.end()) {
+	  cusp.push_back(adj_index);
+	}
+      }
+      // look at the next tetrahedron in the cusp.
+      cusp_iter++;
+    }
+
+    cusps.push_back(cusp);
+  }
+  
   class Triangle {
   public:
-    regina::Simplex<2> *triangle;
+    regina::Simplex<2> *t0, *t1;
     int tet_index;
-    int type; // 0 for (3,3,3) triangle, 1 for (2,3,6) triangle
 
-    Triangle(regina::Simplex<2> *t, int i, int tt) : triangle(t), tet_index(i), type(tt) {}
+    Triangle(regina::Simplex<2> *t0, regina::Simplex<2> *t1, int i) : t0(t0), t1(t1), tet_index(i) {}
     // returns the angle as a multiple of pi/6.
     int angle(int v)
     {
-      if (type == 0) {
+      if (v == 0) {
+	return 3;
+      }
+      else if (v == 1) {
 	return 2;
       }
       else {
-	if (v == 0) {
-	  return 3;
-	}
-	else if (v == 1) {
-	  return 2;
-	}
-	else {
-	  return 1;
-	}
+	return 1;
+      }
+    }
+
+    // 0 = f0, 1 = f1, 2 = e.
+    bool isOpen(int f) {
+      if (f == 0) {
+	return !t0->adjacentSimplex(0);
+      }
+      else if (f == 1) {
+	return !t1->adjacentSimplex(0);
+      }
+      else { // (f == 2)
+	return !t0->adjacentSimplex(2);
       }
     }
   };
   
   std::vector<regina::Triangulation<2>> crossSections;
   // Construct a triangulation for the cross section of each cusp.
+  int cusp_index = 0;
   for (auto cusp = cusps.begin(); cusp != cusps.end(); cusp++) {
 
     regina::Triangulation<2> crossSection;
@@ -283,68 +298,56 @@ void O3Triangulation::computeCuspCrossSections()
 
     // Create a triangle for each tetrahedron.
     int tri_index = 0;
+    regina::Perm<3> id;
     for (auto t = cusp->begin(); t != cusp->end(); t++) {
       O3Tetrahedron *T = tetrahedron(*t);
-      int type = 0;
+
+      Triangle tri(crossSection.newSimplex(), crossSection.newSimplex(), T->index());
+
+      //join these two 2,3,6 triangles along an edge so they both make a (3,3,3) triangle.
+      tri.t0->join(1, tri.t1, id);
+
       if (T->eIdentified()) {
-	type = 1;
-	Triangle t1(crossSection.newSimplex(), T->index(), type);
-	Triangle t2(crossSection.newSimplex(), T->index(), type);
-	//join these two 2,3,6 triangles along an edge so they both make a (3,3,3) triangle.
-	regina::Perm<3> id;
-	t1.triangle->join(1, t2.triangle, id);
-	// also glue edge e to itself
-	t1.triangle->join(2, t2.triangle, id);
+	// join face e to itself
+	tri.t0->join(2, tri.t1, id);
+      }
+      if (T->fIdentified()) {
+	// join f0 to f1
+	tri.t0->join(0, tri.t1, id);
+      }
 	
-	T->setTriangleIndex(tri_index);
-	tri_index = tri_index + 2;
-	triangles.push_back(t1);
-	triangles.push_back(t2);
-      }
-      // ADD ELSE IF TO HANDLE T(f0) glues to T(f1).
-      else {
-	Triangle t1(crossSection.newSimplex(), T->index(), type);
-	T->setTriangleIndex(tri_index);
-	tri_index = tri_index + 1;
-	triangles.push_back(t1);
-      }
+      T->setTriangleIndex(tri_index);
+      tri_index = tri_index + 1;
+      triangles.push_back(tri);
     }
 
     // For each triangle, make the appropriate gluings.
-    regina::Perm<3> gluing(0, 1);
-    regina::Perm<3> id;
     for (int i = 0; i < triangles.size(); i++) {
-      Triangle t1 = triangles[i];
-      O3Tetrahedron *T1 = tetrahedron(t1.tet_index);
+      Triangle tri1 = triangles[i];
+      O3Tetrahedron *T1 = tetrahedron(tri1.tet_index);
 
       for (int f = 1; f <= 3; f++) {
-	O3Tetrahedron *T2 = tetrahedron(T1->adjacentSimplex(f));
-	Triangle t2 = triangles[T2->getTriangleIndex()];
+	// Only make a gluing if face f-1 is open in t1.
+	if (tri1.isOpen(f-1)) {
+	  
+	  O3Tetrahedron *T2 = tetrahedron(T1->adjacentSimplex(f));
+	  Triangle tri2 = triangles[T2->getTriangleIndex()];
 
-	// t1 and t2 are both 3,3,3 triangles
-	if (!T1->eIdentified() && !T2->eIdentified()) {
-	  if (!t1.triangle->adjacentSimplex(f-1) && !t2.triangle->adjacentSimplex(gluing[f-1])) {
-	    t1.triangle->join(f-1, t2.triangle, gluing);
+	  // join f0 in tri1 to f1 in tri2
+	  if (f == 1 && !tri2.t1->adjacentSimplex(0)) {
+	    tri1.t0->join(0, tri2.t1, id);
+	  }
+	  // join f1 in tri1 to f0 in tri2
+	  if (f == 2 && !tri2.t0->adjacentSimplex(0)) {
+	    tri1.t1->join(0, tri2.t0, id);
+	  }
+	  // join e in tri1 to e in tri2
+	  if (f == 3 && !tri2.t1->adjacentSimplex(2) && !tri2.t0->adjacentSimplex(2)) {
+	    tri1.t0->join(2, tri2.t1, id);
+	    tri1.t1->join(2, tri2.t0, id);
 	  }
 	}
-	// t1 is 2,3,6 and t2 is 3,3,3
-	else if (T1->eIdentified() && !T2->eIdentified()) {
-	  if (f == O3Tetrahedron::f0 && !t2.triangle->adjacentSimplex(0) && !triangles[T1->getTriangleIndex() + 1].triangle->adjacentSimplex(0)) {
-	    triangles[T1->getTriangleIndex() + 1].triangle->join(0, t2.triangle, id);
-	  }
-	  if (f == O3Tetrahedron::f1 && !t2.triangle->adjacentSimplex(0) && !t1.triangle->adjacentSimplex(0)) {
-	    t1.triangle->join(0, t2.triangle, id);
-	  }
-	}
-	// t1 and t2 are both 2,3,6 triangles
-	else if (T1->eIdentified() && T2->eIdentified()) {
-	  if (f == O3Tetrahedron::f0 && !t2.triangle->adjacentSimplex(0) && !triangles[T1->getTriangleIndex() + 1].triangle->adjacentSimplex(0)) {
-	    triangles[T1->getTriangleIndex() + 1].triangle->join(0, t2.triangle, id);
-	  }
-	  if (f == O3Tetrahedron::f1 && !t1.triangle->adjacentSimplex(0) && !triangles[T2->getTriangleIndex() + 1].triangle->adjacentSimplex(0)) {
-	    t1.triangle->join(0, triangles[T2->getTriangleIndex() + 1].triangle, id);
-	  }
-	}
+	
       }
     }
 
@@ -367,7 +370,7 @@ void O3Triangulation::computeCuspCrossSections()
 	regina::Simplex<2> *t = emb->simplex();
 	Triangle tri = *std::find_if(triangles.begin(), triangles.end(),
 				     [t](Triangle Tri) -> bool {
-				       return (Tri.triangle == t);
+				       return (Tri.t0 == t || Tri.t1 == t);
 				     });
 	// find the angle around the vertex
 	degree = degree + tri.angle(emb->face());
@@ -379,12 +382,23 @@ void O3Triangulation::computeCuspCrossSections()
 	conePoints.push_back(order);
       }
     }
+    
+    std::cout << "\tCusp #" << cusp_index << ": ";
+    for (auto entry = cusp->begin(); entry != cusp->end(); entry++) {
+      std::cout << *entry << " ";
+    }
+    std::cout << "\n";
 
-    std::cout << "Cone points: ";
+    std::cout << "\tCone points: ";
+
+    std::sort(conePoints.begin(), conePoints.end());
     for (int i = 0; i < conePoints.size(); i++) {
       std::cout << conePoints[i] << " ";
     }
     std::cout << "\n";
+
+    cusp_index++;
+    
   }
 
   
