@@ -26,13 +26,17 @@ class O3Triangulation {
   void printDihedralAngles();
 
   std::vector<int> O3isoSig() { return minimalDestinationSequence(); }
+  std::string O3isoSigString();
   std::string reginaIsoSig() { return trig.isoSig(); }
   int size() { return trig.size()/2; }
   int true_size() { return trig.size(); }
 
   bool checkClosedEdges();
 
+  // The following two methods will produce undefined behavior for partially closed triangulations (ones that still have open faces)
   void computeCuspCrossSections();
+  //void computeSingularLocus();
+  void printSingularLocus(std::string directory);
 
   std::vector<int> destinationSequence();
  private:
@@ -54,6 +58,15 @@ class O3Triangulation {
 							       std::pair<int,int>(6,12) };
   regina::Triangulation<3> trig;
   std::vector<O3Tetrahedron*> tets;
+
+  std::vector<std::vector<std::vector<int>>> singular_graph;
+  void computeSingularLocus();
+  void print_graph();
+  int get_nonsingular_vertex();
+  std::vector<int> adjacent_vertices(int vertex);
+  int valence(int vertex);
+  bool is_loop(int vertex);
+  
 
   std::vector<int> minimalDestinationSequence();
 };

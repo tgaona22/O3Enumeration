@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <set>
+#include <fstream>
 
 O3Triangulation::O3Triangulation()
 {
@@ -413,7 +414,7 @@ bool O3Triangulation::checkClosedEdges()
 
     bool isClosed = true;
     regina::Face<3,1> *edge = edges[i];
-
+    
     // Iterate over all embeddings of the edge, checking that the faces adjacent to the edge
     // are glued. If all are, the edge is closed. If one is not, the edge is open.
     auto embedding = edge->begin();
@@ -445,4 +446,163 @@ bool O3Triangulation::checkClosedEdges()
 
   }
   return true;
+}
+
+void O3Triangulation::printSingularLocus(std::string directory)
+{
+  computeSingularLocus();
+  
+  std::ofstream outstream(directory);
+  // Writes a .dot file to std output giving the graph of the singular locus.
+  outstream << "graph G {\n";
+
+  int nverts = trig.countFaces<0>();
+  for (int i = 0; i < nverts; i++) {
+    for (int j = i; j < nverts; j++) {
+      for (int k = 0; k < singular_graph[i][j].size(); k++) {
+	outstream << i << " -- " << j << "[label = \"" << singular_graph[i][j][k] << "\"]\n";
+      }
+    }
+  }
+
+  for (int i = 0; i < nverts; i++) {
+    if (valence(i) > 0) {
+      const regina::Face<3,0> *v = trig.face<0>(i);
+      outstream << v->index() << " [width=0.25,height=0.25,shape=circle,label=\"\"";
+      if (v->embedding(0).face() == O3Tetrahedron::v) {
+	outstream << "]\n";
+      }
+      else {
+	outstream << ",color=black,style=filled]\n";
+      }
+    }
+  }
+    
+  outstream << "}";
+  outstream.close();
+}
+
+void O3Triangulation::print_graph()
+{
+  int nverts = trig.countFaces<0>();
+  for (int i = 0; i < nverts; i++) {
+    for (int j = 0; j < nverts; j++) {
+      std::cout << "{ ";
+      for (int k = 0; k < singular_graph[i][j].size(); k++) {
+	std::cout << singular_graph[i][j][k] << " ";
+      }
+      std::cout << "}";
+    }
+    std::cout << "\n";
+  }
+}
+
+void O3Triangulation::computeSingularLocus()
+{
+  // Represent the singular locus (a graph that is generally trivalent except when a vertex represents a pillowcase cusp) as
+  // a nxn matrix where n is the number of vertices in the graph, and a nonzero entry a_ij indicates an edge from
+  // vertex i to vertex j with a cone angle of 2pi/a_ij
+
+  // Actually it's a nxn matrix where each entry is a vector, each entry of the vector at ij indicates an edge from
+  // vertex i to vertex j. There can be vertices with multiple edges going to the same destination. 
+
+  int nverts = trig.countFaces<0>();
+  std::vector<std::vector<int>> empties(nverts);
+  for (int i = 0; i < nverts; i++) {
+    singular_graph.push_back(empties);
+  }
+
+  const regina::FaceList<3, 1>& edges = trig.faces<1>();
+  for (int i = 0; i < edges.size(); i++) {
+    const regina::Face<3, 1> *edge = edges[i];
+    const regina::Perm<4>& p = edge->embedding(0).vertices();
+
+    // If there is a dihedral angle around this edge of less than 2 pi, add the appropriate entry to the matrix.
+    if (edge->degree() < 2*edge_labels[p[0]][p[1]]) {
+      int v0 = edge->face<0>(0)->index();
+      int v1 = edge->face<0>(1)->index();
+      singular_graph[v0][v1].push_back(2*edge_labels[p[0]][p[1]]/edge->degree());
+      singular_graph[v1][v0].push_back(2*edge_labels[p[0]][p[1]]/edge->degree());
+    }
+  }
+
+  //std::cout << "Before removing nonsingular vertices: \n";
+  //print_graph();
+
+  // It remains to eliminate vertices of the triangulation with valence 2, as these are not part of the singular locus
+  // except in the special case of two vertices joined together in a loop.
+  // Find and fix these vertices one at a time until there are none left.
+  int bad_vert = get_nonsingular_vertex();
+  while (bad_vert != -1) {
+    // Fix the vertex
+    std::vector<int> nbrs = adjacent_vertices(bad_vert);
+    int label = singular_graph[bad_vert][nbrs[0]][0];
+
+    singular_graph[bad_vert][nbrs[0]].pop_back();
+    singular_graph[nbrs[0]][bad_vert].pop_back();
+    singular_graph[bad_vert][nbrs[1]].pop_back();
+    singular_graph[nbrs[1]][bad_vert].pop_back();
+
+    singular_graph[nbrs[0]][nbrs[1]].push_back(label);
+    singular_graph[nbrs[1]][nbrs[0]].push_back(label);
+
+    bad_vert = get_nonsingular_vertex();
+  }
+
+  //std::cout << "After removing nonsingular vertices: \n";
+  //print_graph();
+}
+
+int O3Triangulation::get_nonsingular_vertex()
+{
+  for (int i = 0; i < singular_graph.size(); i++) {
+    if (valence(i) == 2 && !is_loop(i))
+      return i;
+  }
+  return -1;
+}
+
+std::vector<int> O3Triangulation::adjacent_vertices(int vertex)
+{
+  std::vector<int> result;
+  for (int i = 0; i < singular_graph[vertex].size(); i++) {
+    if (!singular_graph[vertex][i].empty())
+      result.push_back(i);
+  }
+  return result;
+}
+
+int O3Triangulation::valence(int vertex)
+{
+  int result = 0;
+  for (int i = 0; i < singular_graph[vertex].size(); i++) {
+    result = result + singular_graph[vertex][i].size();
+  }
+  return result;
+}
+
+bool O3Triangulation::is_loop(int vertex)
+{
+  std::vector<int> adjs = adjacent_vertices(vertex);
+  return adjs.size() == 1 && valence(vertex) == 2;
+}
+
+std::string O3Triangulation::O3isoSigString()
+{
+  std::string result = "";
+  std::vector<int> sig = O3isoSig();
+
+  int c = 0;
+  for (int i = 0; i < sig.size(); i++) {
+    result += std::to_string(sig[i]);
+    if (c == 3 && i != sig.size()-1) {
+      result += "_";
+      c = 0;
+    }
+    else if (i != sig.size()-1) {
+      result += ",";
+      c = c + 1;
+    }
+  }
+  return result;
 }
